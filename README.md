@@ -4,7 +4,7 @@
 
 ## 开源的目的
 项目以分享为主。你可以通过本项目了解到：
-- 数据如何被保存到hbase的（新手）；
+- 数据如何被保存到hbase的（萌新）；
 - 如何通过简单的配置进行聚合（进阶）；
 - 数据如何发送到Druid（高阶）；
 - 数据流是怎样被我们监控的（高阶）；
@@ -13,9 +13,73 @@
 ## 架构图
 ![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/framework.png)
 
-### 补充说明：
+##### 补充说明：
 - 关于Track数据格式，请移驾： https://www.sensorsdata.cn/manual/data_schema.html
 - Track数据是通过持久化到本地磁盘，再由安装在业务机器上的日志收集插件（自研）发送到日志服务。日志服务再做转发，转发到数据网关。最终数据网关负责把数据发送到kafka
+
+## 提交历史
+代码由公司内网 Tag:2.2 版本迁出到GitHub，所以GitHub上浏览不到代码提交历史。
+![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/commitHistory.png)
+
+## 工程配置说明
+```
+spark-hbase
+  |--->cn.tsign.common.config
+  |                           --->ConfDev.java        ## 开发环境
+  |                           --->ConfTest.java       ## 测试环境
+  |                           --->ConfRelease.java    ## 生产环境
+  |                           --->Env.java            ## 通过这里指定读取那个配置文件
+
+```
+`由于在yarn-cluster上运行通过常规的配置文件的方式，需要使用到hdfs。作者觉得麻烦，所以这里小伙伴可以各自发挥，不一定按照我的配置方式进行`
+
+## 启动命令
+```
+spark-submit     \
+--class cn.tsign.spark.SparkHbase    \
+--master yarn-cluster    \
+--executor-memory 2G    \
+--num-executors 8   \
+--executor-cores=2  \
+--conf spark.shuffle.memoryFraction=0.6    \
+--conf spark.task.maxFailures=8  \
+--conf spark.akka.timeout=300  \
+--conf spark.network.timeout=300  \
+--conf spark.yarn.max.executor.failures=100   \
+--queue=spark  \
+sparkHbase-2.2.jar
+```
+`命令中的附加参数，是我司在正式环境运行的参数。萌新可以参考`
+
+## 监控UI
+### 1、打开Yarn ResourceManagerUI。
+找到名称为`cn.tsign.spark.SparkHbase`的Application。然后打开`Tracking URL`
+![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/resourceMagager.png)
+
+### 2、打开ExecutorsPage
+找到Executors中ID为`driver`的Host。
+![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/ExecutorsPage.png)
+
+### 3、打开监控UI
+打开步骤2中找到的Host，然后在浏览器中打开：然后打开： http://DriverHost:1890
+![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/Config.png)
+
+##### 监控UI默认端口是1890（我小时候去过的网吧名字叫1890）
+
+
+## 可视化配置图文说明
+##### 由于本文着重介绍SparkStreaming，所以关于canal和架构图中除了SparkStreaming以外的组件不做讲解；
+### 1、Binlog&Track数据保存到Hbase。
+![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/MappingConfig.png)
+
+|配置项|含义|
+|-----|-----|
+| MappingConfig.UniqueId | 通过此配置对数据进行归类。其中Binlog使用`database_table`格式，track使用`cid_event`。萌新需要关注的是如何对数据进行归类，而不是为何作者使用这样的规则进行分类 |
+| MappingConfig.Type | 数据来源自那里 |
+| MappingConfig.HbaseTable | 数据保存在Hbase的那个表中 |
+| RowkeyConfig.HbaseTable | Hbase表名 |
+| RowkeyConfig。Rule | 通过什么数据生成Rowkey，多个字段使用英文逗号隔开 |
+
 
 
 
