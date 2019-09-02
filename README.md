@@ -84,6 +84,7 @@ sparkHbase-2.2.jar
 
 ## 2、聚合配置
 ![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/AggConfig.png)
+
 |配置项|含义|
 |-----|-----|
 | AggregationConfig.HbaseTable | 需要聚合的Hbasse表 |
