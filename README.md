@@ -80,6 +80,6 @@ sparkHbase-2.2.jar
 | RowkeyConfig.HbaseTable | Hbase表名 |
 | RowkeyConfig。Rule | 通过什么数据生成Rowkey，多个字段使用英文逗号隔开 |
 
-
+##### MappingConfig和RowkeyConfig需要分别点提交才会生效，因为他们对应在hdfs上是两个配置文件
 
 
