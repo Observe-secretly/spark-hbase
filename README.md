@@ -93,5 +93,24 @@ sparkHbase-2.2.jar
 | AggregationConfig.Group | 根据那些字段进行分组。多字段之间使用英文逗号隔开 |
 | AggregationConfig.Agg | 对指标字段如何进行计算。支持sum、count、min、max、avg。并且聚合计算的字段名称必须设置别名。别名通过表达式后面跟`#Alias`格式进行。表达式通过google开源的轻量级计算框架`com.googlecode.aviator`实现|
 
+## 3、配置可视化
+###### 这里可以看到上面两步的配置。并且可以通过此页面进行删除。操作实时生效。红色字体配置说明，在此配置规则下，已经有10分钟没有接收到数据
+
+![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/Config.png)
+
+
+## 监控数据可视化
+
+### 1、数据流量&丢弃数据监控
+###### 此页面分别展示了Binlog&Track数据被保存了多少，被丢弃了多少以及聚合配置中聚合操作处理的数据量。（截图上只展示了Binlog&Track数据被保存了多少）
+
+![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/Monitor.png)
+
+### 2、监控可视化地图
+###### 作者也不知道用中文怎么说比较叼
+![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/MonitorNetwork.png)
+
+##### 砰、砰、砰、敲黑板，划重点了。小伙伴们可以通过阅读源码包`cn.tsign.spark.accumulator`下的代码，学习如何实现和使用自定义累加器。`累加器`非常重要的概念。萌新 45度仰望天空想想看，在分布是环境下，要统计各个节点的监控数据，应该如何实现；和他同样重要的的概念还有`广播变量`。作者的配置信息存放在HDFS。但并不是每次都会去读取它，我们都知道这是低效能的代码。这时候就需要把信息缓存起来，分发到各个节点以供使用。并且按需或者定时刷新。请阅读源码包`cn.tsign.spark.broadcast`下的代码。
+
 
 
