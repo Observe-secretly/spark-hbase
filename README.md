@@ -132,7 +132,7 @@ Druid最常用作数据库，用于为实时摄取，快速查询性能和高正
 
 ![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/Operator.png)
 
- 关于配置刷新，如果有小伙伴在SparkStreaming运行期间，没有通过GUI直接修改了HDFS配置文件，那么你可能需要手动刷新
+ 关于配置刷新，如果有小伙伴在SparkStreaming运行期间，没有通过GUI直接修改了HDFS配置文件，那么你可以通过此功能手动刷新
 
 ## 最后
  关于GUI的扩展实现，请大家仔细阅读`cn.tsign.ui`包和`cn.tsign.jetty`下的代码。代码前端依赖库复用了Sparkstreaming原生的依赖库。由于作者是使用java写的Sparkstreaming程序，并不能像Scala一样原生支持HTML更不能想它那般使用简洁到变态的语法进行各种RDD操作。这里留给愿意折腾的大牛吧！
