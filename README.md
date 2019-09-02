@@ -77,9 +77,20 @@ sparkHbase-2.2.jar
 | MappingConfig.UniqueId | 通过此配置对数据进行归类。其中Binlog使用`database_table`格式，track使用`cid_event`。萌新需要关注的是如何对数据进行归类，而不是为何作者使用这样的规则进行分类 |
 | MappingConfig.Type | 数据来源自那里 |
 | MappingConfig.HbaseTable | 数据保存在Hbase的那个表中 |
-| RowkeyConfig.HbaseTable | Hbase表名 |
+| RowkeyConfig.HbaseTable | Hbase表名。下拉框展示已经存在的表名。表名定期刷新。`萌新可以看看我的源码是如何实现定时刷新的` |
 | RowkeyConfig。Rule | 通过什么数据生成Rowkey，多个字段使用英文逗号隔开 |
 
 ##### MappingConfig和RowkeyConfig需要分别点提交才会生效，因为他们对应在hdfs上是两个配置文件
+
+## 2、聚合配置
+![](https://github.com/914245697/spark-hbase/blob/master/IMAGE/AggConfig.png)
+|配置项|含义|
+|-----|-----|
+| AggregationConfig.HbaseTable | 需要聚合的Hbasse表 |
+| AggregationConfig.Sink | 聚合后的数据保存在哪里 |
+| AggregationConfig.SourceName | 如果聚合数据Sink到Hbase，则这里代表Hbase表名称。否则则是Druid数据源名称 |
+| AggregationConfig.Group | 根据那些字段进行分组。多字段之间使用英文逗号隔开 |
+| AggregationConfig.Agg | 对指标字段如何进行计算。支持sum、count、min、max、avg。并且聚合计算的字段名称必须设置别名。别名通过表达式后面跟`#Alias`格式进行。表达式通过google开源的轻量级计算框架`com.googlecode.aviator`实现|
+
 
 
