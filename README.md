@@ -144,13 +144,13 @@ Druid最常用作数据库，用于为实时摄取，快速查询性能和高正
 |/_cat/monitor/discard|	 获取丢弃数据监控信息 |
 |/_cat/monitor/agg|	 获取聚合数据监控信息 |
 |/_cat/config|  获取全部配置信息  |
-|/_cat/config/track|	  |
-|/_cat/config/binlog|	  |
-|/_cat/config/rowkey|	  |
-|/_cat/config/agg|	  |
-|/_cat/druid/push|	  |
-|/_cat/fuse|	  |
-|/_cat|	  |
+|/_cat/config/track|  获取Track配置信息  |
+|/_cat/config/binlog|	 获取Binlog配置信息 |
+|/_cat/config/rowkey|	 获取Rowkey配置信息 |
+|/_cat/config/agg|  获取聚合配置信息  |
+|/_cat/druid/push| 获取Druid数据推送信息  |
+|/_cat/fuse|  此接口融合监控信息和配置信息，方便被第三方处理  |
+|/_cat|	 Nothing |
 
 ## 最后
  关于GUI的扩展实现，请大家仔细阅读`cn.tsign.ui`包和`cn.tsign.jetty`下的代码。代码前端依赖库复用了Sparkstreaming原生的依赖库。由于作者是使用java写的Sparkstreaming程序，并不能像Scala一样原生支持HTML，更不能想它那般使用简洁到变态的语法进行各种RDD操作。这里留给愿意折腾的大牛吧！
