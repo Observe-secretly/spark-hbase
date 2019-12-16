@@ -9,7 +9,7 @@ import java.util.UUID;
 import com.alibaba.fastjson.JSON;
 
 import cn.tsign.common.constant.SinkEnum;
-import cn.tsign.common.druid.util.DruidTaskInfo;
+import cn.tsign.common.druid.datasources.hdfs.SegmentGranularityEnum;
 import cn.tsign.common.util.StringUtil;
 
 public class CoreConfig implements Serializable {
@@ -22,7 +22,9 @@ public class CoreConfig implements Serializable {
 
     private Map<String, String>          binlogTableNameSettings = new HashMap<>();
 
-    private Map<String, DruidTaskInfo>   druidTaskInfoConfig     = new HashMap<>();
+    private Map<String, Long>            alarmConfig             = new HashMap<>();
+
+    private Map<String, String>          alarmNotificationConfig = new HashMap<>();
 
     /**
      * Key:要聚合的表名称</br>
@@ -46,8 +48,12 @@ public class CoreConfig implements Serializable {
         aggSettings.put(k, v);
     }
 
-    public void putDruidTaskInfoConfig(String k, DruidTaskInfo v) {
-        druidTaskInfoConfig.put(k, v);
+    public void putAlarmConfig(String k, Long v) {
+        alarmConfig.put(k, v);
+    }
+
+    public void putAlarmNotificationConfig(String k, String v) {
+        alarmNotificationConfig.put(k, v);
     }
 
     public String getTrackTableNameSetting(String k) {
@@ -82,9 +88,17 @@ public class CoreConfig implements Serializable {
         return null;
     }
 
-    public DruidTaskInfo getDruidTaskInfo(String k) {
-        DruidTaskInfo v = druidTaskInfoConfig.get(k);
+    public Long getAlarmConfig(String k) {
+        Long v = alarmConfig.get(k);
         if (v != null) {
+            return v;
+        }
+        return null;
+    }
+
+    public String alarmNotificationConfig(String k) {
+        String v = alarmNotificationConfig.get(k);
+        if (!StringUtil.isEmpty(v)) {
             return v;
         }
         return null;
@@ -106,8 +120,12 @@ public class CoreConfig implements Serializable {
         return aggSettings;
     }
 
-    public Map<String, DruidTaskInfo> getDruidTaskInfoConfig() {
-        return druidTaskInfoConfig;
+    public Map<String, Long> getAlarmConfig() {
+        return alarmConfig;
+    }
+
+    public Map<String, String> getAlarmNotificationConfig() {
+        return alarmNotificationConfig;
     }
 
     @Override
@@ -121,8 +139,8 @@ public class CoreConfig implements Serializable {
         result.append(JSON.toJSONString(binlogTableNameSettings));
         result.append("\n aggSettings-->");
         result.append(JSON.toJSONString(aggSettings));
-        result.append("\n DruidTaskInfoConfig-->");
-        result.append(JSON.toJSONString(druidTaskInfoConfig));
+        result.append("\n AlarmsInfoConfig-->");
+        result.append(JSON.toJSONString(alarmConfig));
         return result.toString();
     }
 
@@ -133,31 +151,37 @@ public class CoreConfig implements Serializable {
      */
     public static class AggConfig implements Serializable {
 
-        private static final long serialVersionUID = -7724822499067194444L;
+        private static final long      serialVersionUID   = -7724822499067194444L;
 
-        private String            uuid             = UUID.randomUUID().toString();
+        private String                 uuid               = UUID.randomUUID().toString();
 
         /**
          * 聚合之后的数据源名称<br>
          * 如果是sink是Hbase，这里代表hbase表名，你需要提前建立好这张表<br>
          * 如果是sink是druid,这里代表数据源名称
          */
-        private String            sourceName;
+        private String                 sourceName;
 
         /**
          * 定义rowkey的生成规则
          */
-        private String            group;
+        private String                 group;
 
         /**
          * 聚合内容
          */
-        private String            agg;
+        private String                 agg;
 
         /**
          * hbase或者druid
          */
-        private SinkEnum          sink;
+        private SinkEnum               sink;
+
+        /**
+         * 数据分区粒度<br>
+         * 默认值天
+         */
+        private SegmentGranularityEnum segmentGranularity = SegmentGranularityEnum.day;
 
         public String getUuid() {
             return uuid;
@@ -207,6 +231,14 @@ public class CoreConfig implements Serializable {
 
         public void setAgg(String agg) {
             this.agg = agg;
+        }
+
+        public SegmentGranularityEnum getSegmentGranularity() {
+            return segmentGranularity;
+        }
+
+        public void setSegmentGranularity(SegmentGranularityEnum segmentGranularity) {
+            this.segmentGranularity = segmentGranularity;
         }
 
     }

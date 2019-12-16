@@ -3,7 +3,6 @@ package cn.tsign.spark;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -39,7 +38,6 @@ import org.eclipse.jetty.server.handler.ContextHandler;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Lists;
 import com.googlecode.aviator.AviatorEvaluator;
@@ -50,22 +48,14 @@ import cn.tsign.common.config.Env;
 import cn.tsign.common.constant.CommonConstant;
 import cn.tsign.common.constant.FunctionNameConstant;
 import cn.tsign.common.constant.SinkEnum;
-import cn.tsign.common.druid.datasources.DruidConfig;
-import cn.tsign.common.druid.datasources.DruidConfig.HdfsParam;
-import cn.tsign.common.druid.datasources.hdfs.MetricsSpec;
-import cn.tsign.common.druid.datasources.hdfs.MetricsSpecTypeEnum;
-import cn.tsign.common.druid.datasources.hdfs.SegmentGranularityEnum;
-import cn.tsign.common.druid.util.DruidTaskInfo;
 import cn.tsign.common.druid.util.DruidUtils;
 import cn.tsign.common.hbase.ColumnFamily;
 import cn.tsign.common.hbase.HbaseUtil;
 import cn.tsign.common.hbase.Row;
 import cn.tsign.common.util.ConfProperties;
-import cn.tsign.common.util.HdfsPropFileUtil;
 import cn.tsign.common.util.HdfsUtils;
 import cn.tsign.common.util.StringUtil;
 import cn.tsign.entity.AggregationFieldEntity;
-import cn.tsign.entity.AggregationOperatorEnum;
 import cn.tsign.entity.BinlogEntity;
 import cn.tsign.entity.StoreAbstract;
 import cn.tsign.entity.TrackEntity;
@@ -73,7 +63,6 @@ import cn.tsign.jetty.JettyDefaultHandler;
 import cn.tsign.spark.accumulator.AggMonitorAccumulator;
 import cn.tsign.spark.accumulator.MonitorAccumulator;
 import cn.tsign.spark.broadcast.ConfBroadcast;
-import cn.tsign.spark.broadcast.FlushDruidTaskBroadcast;
 import cn.tsign.spark.broadcast.HbaseClientBroadcast;
 import cn.tsign.spark.broadcast.HbaseTableNamesBroadcast;
 import cn.tsign.spark.broadcast.HdfsUtilBroadcast;
@@ -300,9 +289,9 @@ public class SparkHbase {
 
         StringBuilder rowkey = new StringBuilder();
         // 解析entity，拼装rowkey
-        Map<String, Object> filedsMap = entity.object2Map(entity);
+        Map<String, Object> filedsMap = entity.trackToMap();
         for (String item : fileds) {
-            Object v = filedsMap.get(item);
+            Object v = filedsMap.get(item.toLowerCase());
             if (v != null) {
                 rowkey.append(v.toString());
             } else if (item.equalsIgnoreCase("uuid()")) {
@@ -331,6 +320,8 @@ public class SparkHbase {
                 rowkey.append(binlogFieldRecover(item, v, entity));
             } else if (item.equalsIgnoreCase("uuid()")) {
                 rowkey.append(getUuid());
+            } else if (item.equalsIgnoreCase("ts()")) {
+                rowkey.append(String.valueOf(entity.getTs()));
             }
         }
 
@@ -425,155 +416,6 @@ public class SparkHbase {
 
         aggregationAction(aggregationMap, confBroadcast.getValue().getAggSettings(), jsc);
 
-        // 按天把数据推送到druid.如果有的话
-        // XXX
-        // 这里有个设计失误，因为程序中包含两条链路，即：binlog和track，他们都通过saveAction方法保存数据，那么假设track和binlog同时在使用时，同一批次pushDataToDriud将会被调用两次。存在并发问题<br>
-        // 又由于聚合目前只支持track格式，所以这里通过msgtype来控制只有track数据才会执行pushDataToDriud方法。后面此处实现需要修改
-        if (msgType.equalsIgnoreCase(CommonConstant.DATA_TYPE_TRACK)) {
-            pushDataToDriud(jsc, confBroadcast.getValue().getAggSettings());
-        }
-    }
-
-    /**
-     * 推送数据到druid
-     * 
-     * @param jsc
-     * @throws IOException
-     */
-    private static void pushDataToDriud(JavaSparkContext jsc,
-                                        Map<String, List<AggConfig>> aggConfMap) throws Exception {
-        SimpleDateFormat format = new SimpleDateFormat(CommonConstant.YYYY_MM_DD_HH_MM_SS);
-        System.out.println("检查是否需要推送数据文本到Druid " + format.format(new Date(System.currentTimeMillis())));
-
-        Broadcast<HdfsUtils> hdfsUtilsBroadcast = HdfsUtilBroadcast.getInstance(jsc);
-        HdfsUtils hdfsUtils = hdfsUtilsBroadcast.getValue();
-
-        // 处理待提交的Druid数据文件
-        Broadcast<List<String>> untreated = FlushDruidTaskBroadcast.getInstance(jsc, hdfsUtils);
-        if (untreated == null || untreated.getValue().size() == 0) return;
-
-        System.out.println("以下文件将会推送到Druid：" + JSON.toJSONString(untreated.getValue()));
-
-        // 提交untreated到Druid,提交之后释放untreated
-        List<String> untreatedFileList = untreated.getValue();
-        if (untreatedFileList != null && untreatedFileList.size() > 0) {
-            for (String path : untreatedFileList) {
-                // 解析path获取文件的sourceName
-                String sourceName = DruidUtils.getSourceNameForFile(path);
-                String fileName = DruidUtils.getFileName(path);
-                // 通过source查找聚合配置
-                AggConfig aggconf = findAggConfig(aggConfMap, sourceName, SinkEnum.druid);
-                DruidTaskInfo druidTaskInfo = new DruidTaskInfo(path);
-                if (aggconf == null) {// 查找不到配置，则修改文件名称
-                    druidTaskInfo.setError(true);
-                    druidTaskInfo.setErrorMessage("Configuration not found");
-                    HdfsPropFileUtil.updateConf(HdfsPropFileUtil.getHdfsFile(CommonConstant.CONF_DRUID_TASK), fileName,
-                                                druidTaskInfo.toString(), hdfsUtils);
-                    continue;
-                }
-
-                // 构建druid配置文件
-                String confStr = createDruidConf(sourceName, path, aggconf);
-
-                // 通过http提交推送
-                String taskId = DruidUtils.sendDataDruid(confStr);
-
-                if (taskId != null) {
-                    // 获取任务ID 更改任务状态
-                    druidTaskInfo.setTaskId(taskId);
-                    druidTaskInfo.setStatus("pending");
-                } else {
-                    druidTaskInfo.setError(true);
-                    druidTaskInfo.setErrorMessage("send error");
-                }
-
-                HdfsPropFileUtil.updateConf(HdfsPropFileUtil.getHdfsFile(CommonConstant.CONF_DRUID_TASK), fileName,
-                                            druidTaskInfo.toString(), hdfsUtils);
-
-                // 释放
-                FlushDruidTaskBroadcast.clean();
-            }
-        }
-    }
-
-    private static String createDruidConf(String sourceName, String path, AggConfig aggconf) throws ParseException {
-        Date startDate = DruidUtils.getFileInterval(path);// 文件的后缀描述了数据属于那天
-
-        SimpleDateFormat format = new SimpleDateFormat(CommonConstant.YYYY_MM_DD);
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(startDate);
-        calendar.set(Calendar.DAY_OF_YEAR, calendar.get(Calendar.DAY_OF_YEAR) + 1);
-
-        String endDateStr = format.format(calendar.getTime());
-
-        HdfsParam hdfsParam = new HdfsParam();
-        hdfsParam.setDataSourceName(sourceName);
-        hdfsParam.setSegmentGranularity(SegmentGranularityEnum.day);
-        hdfsParam.setInterval(format.format(startDate) + "/" + endDateStr);
-        hdfsParam.setPartitionsType("hashed");
-        hdfsParam.setPaths(path);
-        hdfsParam.setTargetPartitionSize(5000000);
-
-        List<String> dimensions = new ArrayList<>();
-        for (String field : aggconf.getGroupFields()) {
-            if (field.startsWith(FunctionNameConstant.TIME_FORMAT)) continue;
-            dimensions.add(field);
-        }
-
-        String[] dimensionArray = new String[dimensions.size()];
-        dimensions.toArray(dimensionArray);
-        hdfsParam.setDimensions(dimensionArray);
-
-        List<MetricsSpec> metricsSpecs = new ArrayList<>();
-        for (String columnDefinition : aggconf.getAggFields()) {
-            MetricsSpec metricsSpec = null;
-            AggregationFieldEntity column = analysisColumnDefinition(columnDefinition);
-            switch (column.getOperator()) {
-                case MIN:
-                    metricsSpec = new MetricsSpec(MetricsSpecTypeEnum.doubleMin, column.getAggFieldName(),
-                                                  column.getAggFieldName());
-                    break;
-                case MAX:
-                    metricsSpec = new MetricsSpec(MetricsSpecTypeEnum.doubleMax, column.getAggFieldName(),
-                                                  column.getAggFieldName());
-                    break;
-                case SUM:
-                    metricsSpec = new MetricsSpec(MetricsSpecTypeEnum.doubleSum, column.getAggFieldName(),
-                                                  column.getAggFieldName());
-                    break;
-
-                default:
-                    metricsSpec = new MetricsSpec(MetricsSpecTypeEnum.doubleSum, column.getAggFieldName(),
-                                                  column.getAggFieldName());// 如果是count可能没有field字段
-                    break;
-            }
-
-            metricsSpecs.add(metricsSpec);
-        }
-
-        MetricsSpec[] metricsSpecArray = new MetricsSpec[metricsSpecs.size()];
-        metricsSpecs.toArray(metricsSpecArray);
-        hdfsParam.setMetricsSpecs(metricsSpecArray);
-        return DruidConfig.createConfToHdfs(hdfsParam);
-    }
-
-    /**
-     * 根据sourceName查找聚合配置
-     * 
-     * @param aggConf
-     * @param sourceName
-     * @return
-     */
-    private static AggConfig findAggConfig(Map<String, List<AggConfig>> aggConf, String sourceName, SinkEnum sink) {
-
-        for (Entry<String, List<AggConfig>> entry : aggConf.entrySet()) {
-            for (AggConfig item : entry.getValue()) {
-                if (item.getSourceName().equalsIgnoreCase(sourceName) && item.getSink().equals(sink)) {
-                    return item;
-                }
-            }
-        }
-        return null;
     }
 
     private static <T extends StoreAbstract> void aggregationAction(Map<String, List<T>> aggregationMap,
@@ -718,9 +560,10 @@ public class SparkHbase {
             rowNum++;
         }
 
-        // 按天写入对应hdfs目录下的文件中即可，文件不存在则创建
+        // 按配置中的时间粒度写入对应hdfs目录下的文件中即可，文件不存在则创建
         String filePath = ConfProperties.getStringValue(ConfigConstant.druid_agg_data_dir) + "/"
-                          + DruidUtils.getTodayDruidDataFileName(aggConfig.getSourceName());
+                          + DruidUtils.getDruidDataFileName(aggConfig.getSourceName(),
+                                                            aggConfig.getSegmentGranularity());
         new HdfsUtils().append(filePath, content.toString());
         addAggMonitor(aggConfig.getUuid(), aggConfig.getSourceName(), rowNum, msgType, SinkEnum.druid);
         System.out.println("save to druid:" + aggConfig.getSourceName() + " number:" + rowNum);
@@ -795,7 +638,7 @@ public class SparkHbase {
             List<AggregationFieldEntity> columns = new ArrayList<>();
             // 分别计算出每个聚合函数的值
             for (String columnDefinition : aggFields) {
-                AggregationFieldEntity column = analysisColumnDefinition(columnDefinition);
+                AggregationFieldEntity column = DruidUtils.analysisColumnDefinition(columnDefinition);
                 if (column == null) continue;
                 for (Map<String, Object> trackMap : trackMapList) {
                     if (StringUtil.isEmpty(column.getField())) {
@@ -840,6 +683,10 @@ public class SparkHbase {
 
         try {
             String expression = field.toLowerCase();
+            // 如果不是表达式，则匹配到后，直接返回
+            if (entryMap.get(expression) != null) {
+                return entryMap.get(expression);
+            }
             return AviatorEvaluator.execute(expression, entryMap);
 
         } catch (Exception e) {
@@ -852,42 +699,9 @@ public class SparkHbase {
     private static List<Map<String, Object>> convertTracksToMap(List<TrackEntity> tracks) {
         List<Map<String, Object>> resultMap = new ArrayList<Map<String, Object>>();
         for (TrackEntity item : tracks) {
-            resultMap.add(StoreAbstract.object2Map(item));
+            resultMap.add(item.trackToMap());
         }
         return resultMap;
-    }
-
-    /**
-     * 把 sum(field)、min(field)等聚合函数解释成AggregationFieldEntity对象
-     * 
-     * @return
-     */
-    private static AggregationFieldEntity analysisColumnDefinition(String columnDefinition) {
-        FunctionNameConstant.FunContent funContent = null;
-        AggregationOperatorEnum operator = null;
-
-        if (columnDefinition.startsWith(FunctionNameConstant.AGG_MAX)) {
-            funContent = FunctionNameConstant.peel(FunctionNameConstant.AGG_MAX, columnDefinition);
-            operator = AggregationOperatorEnum.MAX;
-        } else if (columnDefinition.startsWith(FunctionNameConstant.AGG_MIN)) {
-            funContent = FunctionNameConstant.peel(FunctionNameConstant.AGG_MIN, columnDefinition);
-            operator = AggregationOperatorEnum.MIN;
-        } else if (columnDefinition.startsWith(FunctionNameConstant.AGG_SUM)) {
-            funContent = FunctionNameConstant.peel(FunctionNameConstant.AGG_SUM, columnDefinition);
-            operator = AggregationOperatorEnum.SUM;
-        } else if (columnDefinition.startsWith(FunctionNameConstant.AGG_COUNT)) {
-            funContent = FunctionNameConstant.peel(FunctionNameConstant.AGG_COUNT, columnDefinition);
-            operator = AggregationOperatorEnum.COUNT;
-        } else if (columnDefinition.startsWith(FunctionNameConstant.AGG_AVG)) {
-            funContent = FunctionNameConstant.peel(FunctionNameConstant.AGG_AVG, columnDefinition);
-            operator = AggregationOperatorEnum.AVG;
-        } else {
-            // 错误不支持的函数
-            return null;
-        }
-
-        return new AggregationFieldEntity(funContent.getAlias(), operator, funContent.getContent());
-
     }
 
     /**
@@ -907,7 +721,7 @@ public class SparkHbase {
         // 2、根据拆分出来的数据进行聚合
         Map<String, List<TrackEntity>> splitData = new HashMap<>();
         for (TrackEntity item : data) {
-            Map<String, Object> fieldMap = item.object2Map(item);
+            Map<String, Object> fieldMap = item.trackToMap();
             StringBuffer rowkey = new StringBuffer();
             for (String fieldName : groupFields) {
                 if (fieldName.startsWith(FunctionNameConstant.TIME_FORMAT)) {
@@ -917,7 +731,7 @@ public class SparkHbase {
 
                 } else {
                     // 3、取字段值
-                    Object fieldValue = fieldMap.get(fieldName);
+                    Object fieldValue = fieldMap.get(fieldName.toLowerCase());
                     if (fieldValue == null) {
                         // 获取不到配置的字段对应的值，此处不打印日志，因为可能量非常大
                     } else {
@@ -952,7 +766,7 @@ public class SparkHbase {
             // 通过判断split[0] 是否是函数，来实现嵌套函数功能。本期不做
 
             // 必须是long类型
-            Object fieldValue = fieldMap.get(split[0]);
+            Object fieldValue = fieldMap.get(split[0].toLowerCase());
             if (!(fieldValue instanceof Long)) return null;
 
             SimpleDateFormat format = new SimpleDateFormat(split[1]);

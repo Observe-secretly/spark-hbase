@@ -8,8 +8,11 @@ public enum ConfigConstant {
                             binlog_tablename_conf_path("binlog.tablename.conf.path"), //
                             rowkey_conf_path("rowkey.conf.path"), //
                             agg_conf_path("agg.conf.path"), //
-                            druid_task_conf_path("druid.task.conf.path"), //
                             druid_agg_data_dir("druid.agg.data.path"), //
+                            druid_agg_data_pushed_dir("druid.agg.pushed.path"), //
+                            druid_agg_data_push_log_dir("druid.agg.push.log.path"), //
+                            alarms_notification_path("alarms.notification.path"), //
+                            alarms_conf_path("alarms.conf.path"), //
                             druid_overlord_host("druid.overlord.host"), //
                             druid_overlord_port("druid.overlord.port"), //
 

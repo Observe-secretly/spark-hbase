@@ -9,6 +9,7 @@ import java.util.Set;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
@@ -134,7 +135,8 @@ public class HttpClientUtil {
      * @param encode
      * @return
      */
-    public static HttpResponse httpPostRaw(String url, String stringJson, Map<String, String> headers, String encode) {
+    public static HttpResponse httpPostRaw(String url, String stringJson, Map<String, String> headers, String encode,
+                                           int connectTimeout, int connectionRequestTimeout, int socketTimeout) {
         HttpResponse response = new HttpResponse();
         if (encode == null) {
             encode = "utf-8";
@@ -142,6 +144,8 @@ public class HttpClientUtil {
         // HttpClients.createDefault()等价于 HttpClientBuilder.create().build();
         CloseableHttpClient closeableHttpClient = HttpClients.createDefault();
         HttpPost httpost = new HttpPost(url);
+        RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(connectTimeout).setConnectionRequestTimeout(connectionRequestTimeout).setSocketTimeout(socketTimeout).build();
+        httpost.setConfig(requestConfig);
 
         // 设置header
         httpost.setHeader("Content-type", "application/json");

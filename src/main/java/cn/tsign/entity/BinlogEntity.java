@@ -1,6 +1,8 @@
 package cn.tsign.entity;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,7 +11,6 @@ import java.util.Map.Entry;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hbase.util.Bytes;
 
-import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
 
 import cn.tsign.common.constant.CommonConstant;
@@ -157,7 +158,6 @@ public class BinlogEntity extends StoreAbstract {
             return Lists.newArrayList();
         }
         if (data == null || data.size() == 0) {
-            System.out.println(JSON.toJSONString(this));
             return Lists.newArrayList();
         }
         List<ColumnFamily> result = new ArrayList<>();
@@ -176,6 +176,15 @@ public class BinlogEntity extends StoreAbstract {
             columnFamily.add(item.getKey(),
                              item.getValue() == null ? Bytes.toBytes("") : getValue(fieldType, item.getValue()));
         }
+
+        // 操作标记
+        columnFamily.add("operation_flag", Bytes.toBytes(this.getType()));
+        // 添加时间列
+        columnFamily.add("utc_timestamp", Bytes.toBytes(this.getTs()));
+        // 添加天分区字段
+        SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");
+        columnFamily.add("modifytime_day", Bytes.toBytes(format.format(new Date(Long.parseLong(this.getTs())))));
+
         return columnFamily;
     }
 
@@ -226,7 +235,7 @@ public class BinlogEntity extends StoreAbstract {
         } else if (mysqlType.toLowerCase().startsWith("double")) {
             return DOUBLE_TYPE;
         } else if (mysqlType.toLowerCase().startsWith("decimal")) {
-            return BIGDECIMAL_TYPE;
+            return STRING_TYPE;
         } else if (mysqlType.toLowerCase().startsWith("date")) {
             return STRING_TYPE;
         } else if (mysqlType.toLowerCase().startsWith("datetime")) {

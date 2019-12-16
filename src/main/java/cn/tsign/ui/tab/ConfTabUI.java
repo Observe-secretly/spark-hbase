@@ -77,7 +77,9 @@ public class ConfTabUI extends TemplateAbstract {
 
         html.append("<tbody>");
         for (Entry<String, String> item : coreConfig.getTrackTableNameSettings().entrySet()) {
-            html.append("<tr " + getThAttr(item.getKey()) + " >");
+            Long timeout = getTimeout(item.getKey() + "/track");
+
+            html.append("<tr " + getThAttr(item.getKey(), timeout) + " >");
             html.append("<td>" + item.getKey() + "</td>");
             html.append("<td>" + item.getValue() + "</td>");
             html.append("<td>" + getSaveHistoryLastSaveTime(item.getKey(), format) + "</td>");
@@ -104,7 +106,9 @@ public class ConfTabUI extends TemplateAbstract {
 
         html.append("<tbody>");
         for (Entry<String, String> item : coreConfig.getBinlogTableNameSettings().entrySet()) {
-            html.append("<tr " + getThAttr(item.getKey()) + " >");
+            Long timeout = getTimeout(item.getKey() + "/binlog");
+
+            html.append("<tr " + getThAttr(item.getKey(), timeout) + " >");
             html.append("<td>" + item.getKey() + "</td>");
             html.append("<td>" + item.getValue() + "</td>");
             html.append("<td>" + getSaveHistoryLastSaveTime(item.getKey(), format) + "</td>");
@@ -133,7 +137,22 @@ public class ConfTabUI extends TemplateAbstract {
         return "--";
     }
 
-    private String getThAttr(String hbaseTable) {
+    public Long getTimeout(String confName) {
+        Long result = coreConfig.getAlarmConfig(confName);
+        if (result != null) {
+            return result;
+        }
+        return 0l;
+    }
+
+    private String getThAttr(String hbaseTable, Long timeout) {
+        if (timeout == 0) {
+            return "";
+        }
+        // 如果应用的启动时间少于10分钟则不进行任何告警检查
+        if ((System.currentTimeMillis() - this.getUiConf().getAppStartTime().getTime()) < (1000 * 60 * 10)) {
+            return "";
+        }
         // 计算某个在配置中的表最近数据进来的时间，如果没有则从启动时间算起.和当前时间比，如果时间超过一定时长，则是红色。
         Date lastOpTime = null;
         MonitorValue monitorValue = saveHistoryMap.get(hbaseTable);
@@ -144,7 +163,7 @@ public class ConfTabUI extends TemplateAbstract {
         }
 
         long diff = System.currentTimeMillis() - lastOpTime.getTime();
-        if (diff > (10 * 60 * 1000)) {
+        if (diff > (timeout * 1000 * 60)) {
             return " color='red' style='color:red;font-weight:bold;font-style:italic;' title='Finally, the storage time exceeded 10 minutes and reached "
                    + (diff / 1000 / 60) + " minutes' ";
         }
@@ -179,8 +198,9 @@ public class ConfTabUI extends TemplateAbstract {
         StringBuilder html = new StringBuilder("<h4>Aggregation Config</h4>");
         html.append("<table class='table table-bordered table-condensed table-striped sortable'>");
         html.append("<thead><tr>");
-        html.append("<th width='20.0%' class=''>Hbase Table</th>");
+        html.append("<th width='10.0%' class=''>Hbase Table</th>");
         html.append("<th width='5.0%' class=''>Sink</th>");
+        html.append("<th width='10.0%' class=''>Granularity</th>");
         html.append("<th width='15.0%' class=''>SourceName</th>");
         html.append("<th width='35.0%' class=''>Group&Agg</th>");
         html.append("<th width='15.0%' class=''>Last Save Time</th>");
@@ -195,6 +215,7 @@ public class ConfTabUI extends TemplateAbstract {
                 html.append("<tr>");
                 html.append("<td >" + item.getKey() + "</td>");
                 html.append("<td >" + aggconf.getSink() + "</td>");
+                html.append("<td >" + aggconf.getSegmentGranularity().name() + "</td>");
                 html.append("<td >" + aggconf.getSourceName() + "</td>");
                 html.append("<td >" + "<font style='font-weight: bold;'>Group:</font>" + aggconf.getGroup() + "</br>"
                             + "<font style='font-weight: bold;'>Agg:</font>" + aggconf.getAgg() + "</td>");

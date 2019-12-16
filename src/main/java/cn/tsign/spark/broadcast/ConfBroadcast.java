@@ -10,7 +10,6 @@ import org.spark_project.guava.reflect.TypeToken;
 import com.google.gson.Gson;
 
 import cn.tsign.common.config.ConfigConstant;
-import cn.tsign.common.druid.util.DruidTaskInfo;
 import cn.tsign.common.util.ConfProperties;
 import cn.tsign.spark.broadcast.entity.CoreConfig;
 import cn.tsign.spark.broadcast.entity.CoreConfig.AggConfig;
@@ -39,9 +38,8 @@ public class ConfBroadcast {
                                                                      + ConfProperties.getStringValue(ConfigConstant.track_tablename_conf_path));
                 for (String item : trackTablenameConfRdd.collect()) {
                     if (item.indexOf("=") > 0) {
-                        System.out.print(item + " ");
-                        String[] tableNameConf = item.split("=");
-                        conf.putTrackTableNameSetting(tableNameConf[0], tableNameConf[1]);
+                        int splitIndex = item.indexOf("=");
+                        conf.putTrackTableNameSetting(item.substring(0, splitIndex), item.substring(splitIndex + 1));
                     }
                 }
                 System.out.println();
@@ -50,9 +48,8 @@ public class ConfBroadcast {
                                                                       + ConfProperties.getStringValue(ConfigConstant.binlog_tablename_conf_path));
                 for (String item : binlogTablenameConfRdd.collect()) {
                     if (item.indexOf("=") > 0) {
-                        System.out.print(item + " ");
-                        String[] tableNameConf = item.split("=");
-                        conf.putBinlogTableNameSetting(tableNameConf[0], tableNameConf[1]);
+                        int splitIndex = item.indexOf("=");
+                        conf.putBinlogTableNameSetting(item.substring(0, splitIndex), item.substring(splitIndex + 1));
                     }
                 }
                 System.out.println();
@@ -61,9 +58,8 @@ public class ConfBroadcast {
                                                              + ConfProperties.getStringValue(ConfigConstant.rowkey_conf_path));
                 for (String item : rowkeyConfRdd.collect()) {
                     if (item.indexOf("=") > 0) {
-                        System.out.print(item + " ");
-                        String[] rowkeyConf = item.split("=");
-                        conf.putRowkeySetting(rowkeyConf[0], rowkeyConf[1]);
+                        int splitIndex = item.indexOf("=");
+                        conf.putRowkeySetting(item.substring(0, splitIndex), item.substring(splitIndex + 1));
                     }
                 }
                 System.out.println();
@@ -72,28 +68,41 @@ public class ConfBroadcast {
                                                           + ConfProperties.getStringValue(ConfigConstant.agg_conf_path));
                 for (String item : aggConfRdd.collect()) {
                     if (item.indexOf("=") > 0) {
-                        System.out.print(item + " ");
-                        String[] rowkeyConf = item.split("=");
-                        conf.putAggSetting(rowkeyConf[0],
-                                           new Gson().fromJson(rowkeyConf[1], new TypeToken<List<AggConfig>>() {
+                        int splitIndex = item.indexOf("=");
+                        conf.putAggSetting(item.substring(0, splitIndex),
+                                           new Gson().fromJson(item.substring(splitIndex + 1),
+                                                               new TypeToken<List<AggConfig>>() {
 
-                                               private static final long serialVersionUID = -2956278138002979076L;
-                                           }.getType()));
+                                                                   private static final long serialVersionUID = -2956278138002979076L;
+                                                               }.getType()));
 
                     }
                 }
+
                 System.out.println();
-                System.out.println("加载DruidTask信息");
-                JavaRDD<String> druidTaskInfoConfRdd = jsc.textFile(ConfProperties.getStringValue(ConfigConstant.hdfs_uri)
-                                                                    + ConfProperties.getStringValue(ConfigConstant.druid_task_conf_path));
-                for (String item : druidTaskInfoConfRdd.collect()) {
+                System.out.println("加载alarms配置");
+                JavaRDD<String> alarmsConfRdd = jsc.textFile(ConfProperties.getStringValue(ConfigConstant.hdfs_uri)
+                                                             + ConfProperties.getStringValue(ConfigConstant.alarms_conf_path));
+                for (String item : alarmsConfRdd.collect()) {
                     if (item.indexOf("=") > 0) {
-                        System.out.print(item + " ");
-                        String[] rowkeyConf = item.split("=");
-                        conf.putDruidTaskInfoConfig(rowkeyConf[0],
-                                                    new Gson().fromJson(rowkeyConf[1], DruidTaskInfo.class));
+                        int splitIndex = item.indexOf("=");
+                        conf.putAlarmConfig(item.substring(0, splitIndex),
+                                            Long.parseLong(item.substring(splitIndex + 1)));
+
                     }
                 }
+
+                System.out.println();
+                System.out.println("加载alarmsNotification配置");
+                JavaRDD<String> alarmsNotificationConfRdd = jsc.textFile(ConfProperties.getStringValue(ConfigConstant.hdfs_uri)
+                                                                         + ConfProperties.getStringValue(ConfigConstant.alarms_notification_path));
+                for (String item : alarmsNotificationConfRdd.collect()) {
+                    if (item.indexOf("=") > 0) {
+                        int splitIndex = item.indexOf("=");
+                        conf.putAlarmNotificationConfig(item.substring(0, splitIndex), item.substring(splitIndex + 1));
+                    }
+                }
+
             } catch (Exception e) {
                 e.printStackTrace();
                 System.out.println("配置文件读取失败，可能文件不存在。请在监控UI上配置，文件会自动创建");

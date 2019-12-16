@@ -37,10 +37,12 @@ public class HdfsPropFileUtil {
 
         String[] lines = new String(hdfsUtils.readHDFSFile(hdfsFile)).split("\n");
         Map<String, String> prop = new HashMap<>();
-        for (String line : lines) {
-            String[] item = line.split("=");
-            if (item.length == 2) {
-                prop.put(item[0], item[1]);
+        if (lines != null && lines.length > 0) {
+            for (String line : lines) {
+                int splitIndex = line.indexOf("=");
+                if (splitIndex != -1) {
+                    prop.put(line.substring(0, splitIndex), line.substring(splitIndex + 1));
+                }
             }
         }
 
@@ -77,9 +79,13 @@ public class HdfsPropFileUtil {
             case CommonConstant.CONF_TYPE_AGGREGATION:
                 hdfsFile = ConfProperties.getStringValue(ConfigConstant.agg_conf_path);
                 break;
-            case CommonConstant.CONF_DRUID_TASK:
-                hdfsFile = ConfProperties.getStringValue(ConfigConstant.druid_task_conf_path);
+            case CommonConstant.CONF_ALARMS:
+                hdfsFile = ConfProperties.getStringValue(ConfigConstant.alarms_conf_path);
                 break;
+            case CommonConstant.CONF_ALARM_NOTIFICATION:
+                hdfsFile = ConfProperties.getStringValue(ConfigConstant.alarms_notification_path);
+                break;
+
         }
         return hdfsFile;
     }

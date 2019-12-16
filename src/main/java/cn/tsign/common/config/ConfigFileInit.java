@@ -24,10 +24,15 @@ public class ConfigFileInit {
         if (!hdfsUtils.exist(hdfsFile)) {
             hdfsUtils.createNewHDFSFile(hdfsFile, "");
         }
-        hdfsFile = getHdfsFile(CommonConstant.CONF_DRUID_TASK);
+        hdfsFile = getHdfsFile(CommonConstant.CONF_ALARMS);
         if (!hdfsUtils.exist(hdfsFile)) {
             hdfsUtils.createNewHDFSFile(hdfsFile, "");
         }
+        hdfsFile = getHdfsFile(CommonConstant.CONF_ALARM_NOTIFICATION);
+        if (!hdfsUtils.exist(hdfsFile)) {
+            hdfsUtils.createNewHDFSFile(hdfsFile, "");
+        }
+
     }
 
     private static String getHdfsFile(String type) {
@@ -45,8 +50,11 @@ public class ConfigFileInit {
             case CommonConstant.CONF_TYPE_AGGREGATION:
                 hdfsFile = ConfProperties.getStringValue(ConfigConstant.agg_conf_path);
                 break;
-            case CommonConstant.CONF_DRUID_TASK:
-                hdfsFile = ConfProperties.getStringValue(ConfigConstant.druid_task_conf_path);
+            case CommonConstant.CONF_ALARMS:
+                hdfsFile = ConfProperties.getStringValue(ConfigConstant.alarms_conf_path);
+                break;
+            case CommonConstant.CONF_ALARM_NOTIFICATION:
+                hdfsFile = ConfProperties.getStringValue(ConfigConstant.alarms_notification_path);
                 break;
         }
         return hdfsFile;

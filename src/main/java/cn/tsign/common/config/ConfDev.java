@@ -36,8 +36,11 @@ public class ConfDev {
         conf.put(ConfigConstant.binlog_tablename_conf_path, "/user/spark/binlog-hbase-tablename-conf.properties");
         conf.put(ConfigConstant.rowkey_conf_path, "/user/spark/hbase-rowkey-conf.properties");
         conf.put(ConfigConstant.agg_conf_path, "/user/spark/aggregation-conf.properties");
-        conf.put(ConfigConstant.druid_task_conf_path, "/user/spark/druid-task-conf-path.properties");
-        conf.put(ConfigConstant.druid_agg_data_dir, "/user/spark/druid");
+        conf.put(ConfigConstant.alarms_conf_path, "/user/spark/alarms.properties");
+        conf.put(ConfigConstant.alarms_notification_path, "/user/spark/alarms-notification.properties");
+        conf.put(ConfigConstant.druid_agg_data_dir, "/user/spark/druid/druid_data");
+        conf.put(ConfigConstant.druid_agg_data_pushed_dir, "/user/spark/druid/druid_pushed");
+        conf.put(ConfigConstant.druid_agg_data_push_log_dir, "/user/spark/druid/druid_log");
         conf.put(ConfigConstant.druid_overlord_host, "druid01");
         conf.put(ConfigConstant.druid_overlord_port, "8090");
 

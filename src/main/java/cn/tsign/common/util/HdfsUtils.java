@@ -7,7 +7,11 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Random;
+import java.util.TreeMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -96,6 +100,87 @@ public class HdfsUtils implements Serializable {
             }
         }
 
+        fs.close();
+        return names;
+    }
+
+    public FileStatus[] listFileStatus(String dir) throws IOException {
+        if (StringUtil.isBlank(dir)) {
+            return null;
+        }
+        dir = formatHdfsPath(dir);
+        FileSystem fs = FileSystem.get(URI.create(dir), getConfig());
+        FileStatus[] stats = fs.listStatus(new Path(dir));
+        return stats;
+    }
+
+    public List<String> listFile(String dir) throws IOException {
+        if (StringUtil.isBlank(dir)) {
+            return new ArrayList<String>();
+        }
+        dir = formatHdfsPath(dir);
+        FileSystem fs = FileSystem.get(URI.create(dir), getConfig());
+        FileStatus[] stats = fs.listStatus(new Path(dir));
+        List<String> names = new ArrayList<String>();
+        for (int i = 0; i < stats.length; ++i) {
+            if (stats[i].isFile()) {
+                names.add(stats[i].getPath().toString());
+            }
+        }
+        fs.close();
+        return names;
+    }
+
+    public List<String> listFileTopN(String dir, int N) throws IOException {
+        if (StringUtil.isBlank(dir)) {
+            return new ArrayList<String>();
+        }
+        dir = formatHdfsPath(dir);
+        FileSystem fs = FileSystem.get(URI.create(dir), getConfig());
+        FileStatus[] stats = fs.listStatus(new Path(dir));
+
+        TreeMap<Long, String> treeMap = new TreeMap<>(new Comparator<Long>() {
+
+            @Override
+            public int compare(Long k1, Long k2) {
+                return (int) (k2 - k1);
+            }
+        });
+
+        for (int i = 0; i < stats.length; ++i) {
+            FileStatus file = stats[i];
+            if (file.isFile()) {
+                Random rundom = new Random();
+                treeMap.put(file.getModificationTime() + rundom.nextInt(100), file.getPath().toString());
+            }
+        }
+        fs.close();
+        List<String> names = new ArrayList<String>();
+
+        for (Entry<Long, String> entry : treeMap.entrySet()) {
+            names.add(entry.getValue());
+            if (names.size() >= N) {
+                break;
+            }
+        }
+
+        return names;
+    }
+
+    public List<String> listDir(String dir) throws IOException {
+        if (StringUtil.isBlank(dir)) {
+            return new ArrayList<String>();
+        }
+        dir = formatHdfsPath(dir);
+        FileSystem fs = FileSystem.get(URI.create(dir), getConfig());
+        FileStatus[] stats = fs.listStatus(new Path(dir));
+        List<String> names = new ArrayList<String>();
+        for (int i = 0; i < stats.length; ++i) {
+            if (!stats[i].isFile()) {
+                // dir
+                names.add(stats[i].getPath().toString());
+            }
+        }
         fs.close();
         return names;
     }
@@ -311,7 +396,26 @@ public class HdfsUtils implements Serializable {
      * @throws IOException
      */
     public boolean rename(String src, String dst) throws IOException {
+        FileSystem fileSystem = null;
 
+        try {
+            fileSystem = FileSystem.get(URI.create(uri), getConfig());
+            return fileSystem.rename(new Path(src), new Path(dst));
+        } finally {
+            fileSystem.close();
+        }
+    }
+
+    /**
+     * 移动文件<br>
+     * 牛逼的rename
+     * 
+     * @param src
+     * @param dst
+     * @return
+     * @throws IOException
+     */
+    public boolean move(String src, String dst) throws IOException {
         FileSystem fileSystem = null;
 
         try {

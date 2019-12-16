@@ -10,7 +10,6 @@ public enum CatApiPathEnum {
                             _cat_config_binlog("/_cat/config/binlog", "Binlog Config"), //
                             _cat_config_rowkey("/_cat/config/rowkey", "Binlog Config"), //
                             _cat_config_agg("/_cat/config/agg", "Aggregation Config"), //
-                            _cat_config_druid_push("/_cat/druid/push", "druid push history"), //
                             _cat_fuse("/_cat/fuse", "config join monitor"), //
                             _cat("/_cat", "api desc list");//
 

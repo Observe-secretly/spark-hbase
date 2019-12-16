@@ -1,15 +1,12 @@
 package cn.tsign.ui.tab;
 
-import java.util.Map.Entry;
-import java.util.Properties;
-
 import org.apache.spark.api.java.JavaSparkContext;
 
 import com.google.gson.Gson;
 
-import cn.tsign.common.constant.CommonConstant;
+import cn.tsign.common.config.ConfigConstant;
 import cn.tsign.common.druid.util.DruidTaskInfo;
-import cn.tsign.common.util.HdfsPropFileUtil;
+import cn.tsign.common.util.ConfProperties;
 import cn.tsign.common.util.HdfsUtils;
 import cn.tsign.common.util.StringUtil;
 import cn.tsign.ui.TemplateAbstract;
@@ -44,15 +41,14 @@ public class DruidPushTabUI extends TemplateAbstract {
         html.append("<th width='10.0%' class=''>Message</th>");
         html.append("</tr></thead>");
 
-        Properties druidTaskInfoConfig = new Properties();
         try {
-            druidTaskInfoConfig.load(hdfsUtils.readHDFSFileToStream(HdfsPropFileUtil.getHdfsFile(CommonConstant.CONF_DRUID_TASK)));
             html.append("<tbody>");
 
-            for (Entry<Object, Object> item : druidTaskInfoConfig.entrySet()) {
-
-                DruidTaskInfo druidTaskInfo = new Gson().fromJson(item.getValue().toString(), DruidTaskInfo.class);
-
+            for (String item : hdfsUtils.listFileTopN(ConfProperties.getStringValue(ConfigConstant.druid_agg_data_push_log_dir),
+                                                      20)) {
+                // 反序列化
+                String druidTaskInfoJson = new String(hdfsUtils.readHDFSFile(item));
+                DruidTaskInfo druidTaskInfo = new Gson().fromJson(druidTaskInfoJson, DruidTaskInfo.class);
                 html.append("<tr>");
                 html.append("<td>" + druidTaskInfo.getPath() + "</td>");
                 html.append("<td>" + druidTaskInfo.getTaskId() + "</td>");
@@ -72,6 +68,9 @@ public class DruidPushTabUI extends TemplateAbstract {
     }
 
     public String formatStatus(String status) {
+        if (StringUtil.isEmpty(status)) {
+            return "";
+        }
         status = status.toUpperCase().trim();
         switch (status) {
             case "SUCCESS":

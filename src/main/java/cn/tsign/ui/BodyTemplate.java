@@ -18,6 +18,8 @@ public class BodyTemplate extends TemplateAbstract {
 
     public static int         DruidPush        = 5;
 
+    public static int         ALARMS           = 6;
+
     private int               navIndex         = 0;
 
     public BodyTemplate(JavaSparkContext sc, int navIndex){
@@ -43,6 +45,7 @@ public class BodyTemplate extends TemplateAbstract {
         navbar.append("<li class='" + (index == 5 ? "active" : "") + "'><a href='/druidPush'>Druid Push</a></li>");
         navbar.append("<li class='" + (index == 2 ? "active" : "") + "'><a href='/operator'>Operator</a></li>");
         navbar.append("<li class='" + (index == 3 ? "active" : "") + "'><a href='/settings'>Settings</a></li>");
+        navbar.append("<li class='" + (index == 6 ? "active" : "") + "'><a href='/alarms'>Alarms</a></li>");
 
         return navbar.append("</ul></div></div>").toString();
 

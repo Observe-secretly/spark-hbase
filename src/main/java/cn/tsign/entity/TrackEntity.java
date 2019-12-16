@@ -1,6 +1,7 @@
 package cn.tsign.entity;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -118,7 +119,7 @@ public class TrackEntity extends StoreAbstract {
     @Override
     public List<ColumnFamily> toHbase() {
         ColumnFamily columnFamily = new ColumnFamily(CommonConstant.COLUMN_FAMILY_NAME);
-        Map<String, Object> map = object2Map(this);
+        Map<String, Object> map = trackToMap();
         for (Entry<String, Object> entry : map.entrySet()) {
             columnFamily.add(entry.getKey(), entry.getValue() == null ? Bytes.toBytes("") : getValue(entry.getValue()));
         }
@@ -132,6 +133,31 @@ public class TrackEntity extends StoreAbstract {
         }
 
         return Arrays.asList(columnFamily);
+    }
+
+    public Map<String, Object> trackToMap() {
+        Map<String, Object> map = new HashMap<String, Object>();
+        map.put("distinct_id", this.getDistinct_id());
+        map.put("time", this.getTime());
+        map.put("type", this.getType());
+        map.put("event", this.getEvent());
+        map.put("cid", this.getCid());
+        map.put("cname", this.getCname());
+        map.put("_nocache", this.get_nocache());
+
+        for (Entry<String, Object> item : this.getExt_properties().entrySet()) {
+            map.put("ext." + item.getKey().toLowerCase(), item.getValue());
+        }
+
+        for (Entry<String, Object> item : this.getProperties().entrySet()) {
+            map.put("prop." + item.getKey().toLowerCase(), item.getValue());
+        }
+
+        for (Entry<String, Object> item : this.getLib().entrySet()) {
+            map.put("lib." + item.getKey().toLowerCase(), item.getValue());
+        }
+
+        return map;
     }
 
 }

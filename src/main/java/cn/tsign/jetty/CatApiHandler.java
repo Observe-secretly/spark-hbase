@@ -85,12 +85,6 @@ public class CatApiHandler {
 
     }
 
-    public static String catConfigDruidPush(CoreConfig coreConfig, HttpServletRequest request,
-                                            HttpServletResponse response) {
-        return new Gson().toJson(coreConfig.getDruidTaskInfoConfig());
-
-    }
-
     public static String catMonitor(Monitor monitor, HttpServletRequest request, HttpServletResponse response) {
         return new Gson().toJson(monitor);
 
