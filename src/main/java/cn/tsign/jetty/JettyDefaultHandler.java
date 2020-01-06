@@ -762,6 +762,9 @@ public class JettyDefaultHandler extends AbstractHandler {
             if (item.endsWith("process")) {
                 // 反序列化
                 String druidTaskInfoJson = new String(hdfsUtils.readHDFSFile(item));
+                if (StringUtil.isEmpty(druidTaskInfoJson)) {
+                    continue;
+                }
                 DruidTaskInfo druidTaskInfo = new Gson().fromJson(druidTaskInfoJson, DruidTaskInfo.class);
                 // 获取taskId
                 String taskId = druidTaskInfo.getTaskId();
